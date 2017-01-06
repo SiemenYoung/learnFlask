@@ -1,11 +1,11 @@
 from flask import Flask,render_template,session,redirect,url_for,flash
-from flask_script import Manager
+from flask_script import Manager,Shell
 from flask_bootstrap import Bootstrap
 from flask_wtf import Form
 from wtforms import StringField, SubmitField
 from wtforms.validators import Required
 from flask_sqlalchemy import SQLAlchemy
-
+from flask.ext.migrate import Migrate,MigrateCommand
 app=Flask(__name__)
 app.config['SECRET_KEY'] = 'hard to guess string'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://ysm:123456@localhost/flask'
@@ -15,6 +15,7 @@ app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 manager = Manager(app)
 bootstrap = Bootstrap(app)
 db = SQLAlchemy(app)
+migrate = Migrate(app,db)
 
 class Role(db.Model):
 	"""docstring for Role"""
@@ -34,7 +35,14 @@ class User(db.Model):
 	role_id =  db.Column(db.Integer, db.ForeignKey('roles.id'))
 	def __repr__(self):
 		return '<User %r>' % self.name
-		
+class Manager(db.Model):
+	"""docstring for Manager"""
+	__tablename__ = 'manager'
+	id = db.Column(db.Integer,primary_key=True)
+	username = db.Column(db.String(64),unique=True)
+	def __repr__(self):
+		return '<Manager %r>' % self.name
+						
 
 class NameForm(Form):
 	name = StringField('What is your name',validators=[Required()])
@@ -56,7 +64,10 @@ def index():
 		return redirect(url_for('index'))
 	return render_template('index.html',form=form,name=session.get('name'),konwn=session.get('known',False))
 
-
+def make_shell_context():
+	return dict(app=app,db=db,User=User,Role=Role)
+manager.add_command("shell",Shell(make_context=make_shell_context))
+manager.add_command('db', MigrateCommand)
 # @app.route('/user/<name>')
 # def user(name):
 # 	return render_template('user.html',name=name)
@@ -69,6 +80,6 @@ def page_not_found():
 def internal_server_error(e):
      return render_template('500.html'), 500
 
- if __name__ == '__main__':
+if __name__ == '__main__':
 #	#db.create_all()
- 	manager.run()
+	manager.run()
